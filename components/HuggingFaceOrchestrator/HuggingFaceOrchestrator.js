@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import TaskSelector from './TaskSelector';
 import ModelSelector from './ModelSelector';
-import InferencePane from './InferencePane'; 
+import InferencePane from './InferencePane';
 import FineTuningPane from './FineTuningPane';
 import ResultsDisplay from './ResultsDisplay';
 import { Label, Select, Button, TextArea, Input } from './shared/FormElements';
@@ -11,15 +11,17 @@ import { Label, Select, Button, TextArea, Input } from './shared/FormElements';
 const API_BASE_URL = 'https://orch-backend.forgemission.com'; // e.g., https://api.yourdomain.com
 
 const HuggingFaceOrchestrator = () => {
-  const [operationMode, setOperationMode] = useState('inference');
+  const [operationMode, setOperationMode] = useState('inference'); // 'inference', 'finetune', or 'anomaly'
   const [selectedTask, setSelectedTask] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [customModelName, setCustomModelName] = useState('');
 
+  // Inference state
   const [inputText, setInputText] = useState('');
   const [contextText, setContextText] = useState('');
   const [generationArgs, setGenerationArgs] = useState({ max_length: 50, num_beams: 1 });
 
+  // Fine-tuning state
   const [fineTuneParams, setFineTuneParams] = useState({
     datasetPath: '',
     text_column: 'text',
@@ -39,12 +41,23 @@ const HuggingFaceOrchestrator = () => {
     num_labels: null,
   });
 
+  // Anomaly Detection State
+  const [anomalyText, setAnomalyText] = useState('');
+  const [anomalyParams, setAnomalyParams] = useState({
+    embedding_model_name: 'sentence-transformers/all-MiniLM-L6-v2',
+    autoencoder_model_path: './saved_autoencoder.pth', // Example path, user should provide
+    autoencoder_embedding_dim: 384,
+    autoencoder_encoding_dim: 64,
+    threshold: 0.1,
+  });
+
+
   const [quantizationOption, setQuantizationOption] = useState('none');
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const getFinalModelName = () => {
+  const getFinalModelName = () => { // Used for inference/fine-tuning
     return selectedModel === 'custom' ? customModelName.trim() : selectedModel;
   };
 
@@ -53,12 +66,16 @@ const HuggingFaceOrchestrator = () => {
     setError(null);
     setResults(null);
 
-    const modelToUse = getFinalModelName();
-    if (!modelToUse || !selectedTask) {
-      setError('Please select a task and model.');
-      setIsLoading(false);
-      return;
+    // Model/task validation for inference and fine-tuning, not for anomaly detection directly here
+    if (operationMode !== 'anomaly') {
+        const modelToUse = getFinalModelName();
+        if (!modelToUse || !selectedTask) {
+          setError('Please select a task and model for inference/fine-tuning.');
+          setIsLoading(false);
+          return;
+        }
     }
+
 
     console.log(`Calling API endpoint: ${API_BASE_URL}${endpoint} with payload:`, payload);
 
@@ -139,69 +156,114 @@ const HuggingFaceOrchestrator = () => {
     };
     handleApiCall('/api/v1/finetune', payload);
   };
+
+  const handleDetectAnomaly = () => {
+    if (!anomalyText.trim()) {
+      setError('Text for anomaly detection cannot be empty.');
+      return;
+    }
+    if (!anomalyParams.autoencoder_model_path.trim()) {
+      setError('Autoencoder model path cannot be empty.');
+      return;
+    }
+    const payload = {
+      text: anomalyText,
+      embedding_model_name: anomalyParams.embedding_model_name,
+      autoencoder_model_path: anomalyParams.autoencoder_model_path,
+      autoencoder_embedding_dim: parseInt(anomalyParams.autoencoder_embedding_dim, 10),
+      autoencoder_encoding_dim: parseInt(anomalyParams.autoencoder_encoding_dim, 10),
+      threshold: parseFloat(anomalyParams.threshold),
+    };
+    // Validate parsed numbers
+    if (isNaN(payload.autoencoder_embedding_dim) || isNaN(payload.autoencoder_encoding_dim) || isNaN(payload.threshold)) {
+        setError("Autoencoder dimensions and threshold must be valid numbers.");
+        return;
+    }
+    handleApiCall('/api/v1/detect_anomaly', payload);
+  };
   
-  const currentModelName = getFinalModelName();
+  const currentModelName = getFinalModelName(); // Relevant for inference/fine-tuning modes
 
   const handleGenArgChange = (e) => {
     const { name, value } = e.target;
     setGenerationArgs(prev => ({ ...prev, [name]: parseInt(value, 10) || 0 }));
   };
 
+  const handleAnomalyParamChange = (e) => {
+    const { name, value } = e.target;
+    setAnomalyParams(prev => ({ ...prev, [name]: value }));
+  };
+
+
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 bg-gray-800 text-gray-100 rounded-lg shadow-xl space-y-6">
       <h1 className="text-2xl font-semibold text-indigo-400 mb-6 text-center">Hugging Face Model Orchestrator</h1>
 
-      <div className="flex space-x-2 mb-6 p-1 bg-gray-700 rounded-lg">
+      {/* Operation Mode Toggle */}
+      <div className="flex space-x-1 sm:space-x-2 mb-6 p-1 bg-gray-700 rounded-lg">
         <Button
           onClick={() => { setOperationMode('inference'); setResults(null); setError(null);}}
           variant={operationMode === 'inference' ? 'primary' : 'secondary'}
-          className="flex-1"
+          className="flex-1 text-xs sm:text-sm"
         >
-          Direct Inference
+          Inference
         </Button>
         <Button
           onClick={() => { setOperationMode('finetune'); setResults(null); setError(null);}}
           variant={operationMode === 'finetune' ? 'primary' : 'secondary'}
-          className="flex-1"
+          className="flex-1 text-xs sm:text-sm"
         >
-          Fine-Tune Model
+          Fine-Tune
+        </Button>
+        <Button
+          onClick={() => { setOperationMode('anomaly'); setResults(null); setError(null);}}
+          variant={operationMode === 'anomaly' ? 'primary' : 'secondary'}
+          className="flex-1 text-xs sm:text-sm"
+        >
+          Anomaly Detect
         </Button>
       </div>
 
-      <div className="space-y-4 p-4 border border-gray-700 rounded-md">
-        <h2 className="text-lg font-medium text-indigo-400">Common Configuration</h2>
-        <TaskSelector selectedTask={selectedTask} setSelectedTask={(task) => {setSelectedTask(task); setSelectedModel(''); setCustomModelName(''); setResults(null); setError(null); setInputText(''); setContextText('');}} />
-        {selectedTask && (
-          <ModelSelector
-            selectedTask={selectedTask}
-            selectedModel={selectedModel}
-            setSelectedModel={setSelectedModel}
-            customModelName={customModelName}
-            setCustomModelName={setCustomModelName}
-          />
-        )}
-      </div>
+      {/* Common Configuration for Inference/Fine-tuning */}
+      {(operationMode === 'inference' || operationMode === 'finetune') && (
+        <>
+          <div className="space-y-4 p-4 border border-gray-700 rounded-md">
+            <h2 className="text-lg font-medium text-indigo-400">Common Configuration</h2>
+            <TaskSelector selectedTask={selectedTask} setSelectedTask={(task) => {setSelectedTask(task); setSelectedModel(''); setCustomModelName(''); setResults(null); setError(null); setInputText(''); setContextText('');}} />
+            {selectedTask && (
+              <ModelSelector
+                selectedTask={selectedTask}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
+                customModelName={customModelName}
+                setCustomModelName={setCustomModelName}
+              />
+            )}
+          </div>
 
-      {(currentModelName) && (
-        <div className="p-4 border border-gray-700 rounded-md">
-          <Label htmlFor="quantization-option">Quantization Option</Label>
-          <Select id="quantization-option" value={quantizationOption} onChange={(e) => setQuantizationOption(e.target.value)}>
-            <option value="none">None</option>
-            <option value="dynamic_int8_cpu">Dynamic INT8 (CPU PyTorch)</option>
-          </Select>
-          <p className="text-xs text-gray-400 mt-1">Note: Applied by backend during model loading/processing.</p>
-        </div>
+          {(currentModelName && operationMode === 'inference') && ( // Quantization only for inference for now
+            <div className="p-4 border border-gray-700 rounded-md">
+              <Label htmlFor="quantization-option">Quantization Option (Inference)</Label>
+              <Select id="quantization-option" value={quantizationOption} onChange={(e) => setQuantizationOption(e.target.value)}>
+                <option value="none">None</option>
+                <option value="dynamic_int8_cpu">Dynamic INT8 (CPU PyTorch)</option>
+              </Select>
+              <p className="text-xs text-gray-400 mt-1">Note: Applied by backend during model loading/processing.</p>
+            </div>
+          )}
+        </>
       )}
 
+
       {/* Mode-Specific Panes */}
-      {currentModelName && selectedTask && operationMode === 'inference' && (
+      {operationMode === 'inference' && currentModelName && selectedTask && (
         <div className="p-4 border border-gray-700 rounded-md space-y-4">
             <h3 className="text-md font-medium text-indigo-300">Inference Input</h3>
             <InferencePane
               inputText={inputText} 
               setInputText={setInputText}
               isQA={selectedTask === 'question-answering'} 
-              selectedTask={selectedTask} // Pass selectedTask as a prop
+              selectedTask={selectedTask}
             />
             {selectedTask === 'question-answering' && (
               <div>
@@ -215,7 +277,6 @@ const HuggingFaceOrchestrator = () => {
                 />
               </div>
             )}
-            {/* This is now the SINGLE "Run Inference" button for this mode */}
             <Button 
                 onClick={handleRunInference} 
                 disabled={isLoading || !inputText.trim() || (selectedTask === 'question-answering' && !contextText.trim())}
@@ -225,7 +286,7 @@ const HuggingFaceOrchestrator = () => {
         </div>
       )}
       
-      {currentModelName && selectedTask === 'text-generation' && operationMode === 'inference' && (
+      {operationMode === 'inference' && currentModelName && selectedTask === 'text-generation' && (
         <div className="p-4 border border-gray-700 rounded-md mt-4 space-y-3">
             <h3 className="text-md font-medium text-indigo-300">Generation Arguments</h3>
             <div>
@@ -241,7 +302,7 @@ const HuggingFaceOrchestrator = () => {
           </div>
       )}
 
-      {currentModelName && selectedTask && operationMode === 'finetune' && (
+      {operationMode === 'finetune' && currentModelName && selectedTask && (
         <FineTuningPane
           fineTuneParams={fineTuneParams}
           setFineTuneParams={setFineTuneParams}
@@ -250,6 +311,81 @@ const HuggingFaceOrchestrator = () => {
           selectedTask={selectedTask}
         />
       )}
+
+      {/* Anomaly Detection Pane */}
+      {operationMode === 'anomaly' && (
+        <div className="p-4 border border-gray-700 rounded-md space-y-4">
+            <h2 className="text-lg font-medium text-indigo-400">Anomaly Detection</h2>
+            <div>
+                <Label htmlFor="anomaly-text">Text to Analyze</Label>
+                <TextArea
+                    id="anomaly-text"
+                    value={anomalyText}
+                    onChange={(e) => setAnomalyText(e.target.value)}
+                    placeholder="Enter text to check for anomalies..."
+                    rows={4}
+                />
+            </div>
+            <div>
+                <Label htmlFor="embedding_model_name">Embedding Model Name</Label>
+                <Input
+                    id="embedding_model_name"
+                    name="embedding_model_name"
+                    value={anomalyParams.embedding_model_name}
+                    onChange={handleAnomalyParamChange}
+                    placeholder="e.g., sentence-transformers/all-MiniLM-L6-v2"
+                />
+            </div>
+            <div>
+                <Label htmlFor="autoencoder_model_path">Autoencoder Model Path (.pth)</Label>
+                <Input
+                    id="autoencoder_model_path"
+                    name="autoencoder_model_path"
+                    value={anomalyParams.autoencoder_model_path}
+                    onChange={handleAnomalyParamChange}
+                    placeholder="e.g., ./saved_models/autoencoder.pth"
+                />
+                 <p className="text-xs text-gray-400 mt-1">Path relative to the backend server.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <Label htmlFor="autoencoder_embedding_dim">AE Embedding Dim</Label>
+                    <Input
+                        id="autoencoder_embedding_dim"
+                        name="autoencoder_embedding_dim"
+                        type="number"
+                        value={anomalyParams.autoencoder_embedding_dim}
+                        onChange={handleAnomalyParamChange}
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="autoencoder_encoding_dim">AE Encoding Dim (Bottleneck)</Label>
+                    <Input
+                        id="autoencoder_encoding_dim"
+                        name="autoencoder_encoding_dim"
+                        type="number"
+                        value={anomalyParams.autoencoder_encoding_dim}
+                        onChange={handleAnomalyParamChange}
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="threshold">Anomaly Threshold</Label>
+                    <Input
+                        id="threshold"
+                        name="threshold"
+                        type="text" // Use text to allow float input easily, parse later
+                        value={anomalyParams.threshold}
+                        onChange={handleAnomalyParamChange}
+                        placeholder="e.g., 0.1"
+                    />
+                </div>
+            </div>
+            <Button onClick={handleDetectAnomaly} disabled={isLoading || !anomalyText.trim() || !anomalyParams.autoencoder_model_path.trim()}>
+                {isLoading ? 'Detecting...' : 'Detect Anomaly'}
+            </Button>
+        </div>
+      )}
+
 
       <ResultsDisplay results={results} error={error} isLoading={isLoading && (!results && !error)} />
     </div>
