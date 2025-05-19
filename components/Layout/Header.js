@@ -7,7 +7,7 @@ const Header = () => {
       {/* Left side: Logo and Brand */}
       <div className="flex items-center space-x-2">
         <img src="/images/logo.png" alt="ForgeMission Logo" className="h-11" />
-        <Link href="/" className="text-2xl font-bold text-gray-900 hover:text-blue-600 transition">
+        <Link href="http://www.forgemission.com" className="text-2xl font-bold text-gray-900 hover:text-blue-600 transition">
           ForgeMission
         </Link>
       </div>

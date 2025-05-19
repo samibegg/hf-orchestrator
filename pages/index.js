@@ -6,7 +6,7 @@ export default function HomePage() {
   return (
     <> {/* Using a fragment as the main div is now in Layout.js */}
       <Head>
-        <title>Hugging Face Model Lab | Orchestrator</title>
+        <title>Model Lab | Orchestrator</title>
         <meta name="description" content="Orchestrate Hugging Face models for inference and fine-tuning" />
         <link rel="icon" href="/favicon.ico" /> {/* Make sure to add a favicon.ico to your public folder */}
       </Head>

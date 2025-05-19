@@ -113,7 +113,7 @@ const HuggingFaceOrchestrator = () => {
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-gray-800 text-gray-100 rounded-lg shadow-xl space-y-6">
-      <h1 className="text-2xl font-semibold text-indigo-400 mb-6">Hugging Face Model Orchestrator</h1>
+      <h1 className="text-2xl font-semibold text-indigo-400 mb-6">Model Orchestration Lab</h1>
 
       {/* Operation Mode Toggle */}
       <div className="flex space-x-2 mb-6 p-1 bg-gray-700 rounded-lg">
