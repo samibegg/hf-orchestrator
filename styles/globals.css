@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  /* You can set a default background for the entire app if needed */
+  /* Example: background-color: #1a202c; /* Equivalent to Tailwind's gray-900 */
+  /* color: #cbd5e0; /* Equivalent to Tailwind's gray-300 */
+}
