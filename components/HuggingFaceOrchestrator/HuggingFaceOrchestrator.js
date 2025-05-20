@@ -197,7 +197,7 @@ const HuggingFaceOrchestrator = () => {
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 bg-gray-800 text-gray-100 rounded-lg shadow-xl space-y-6">
-      <h1 className="text-2xl font-semibold text-indigo-400 mb-6 text-center">Hugging Face Model Orchestrator</h1>
+      <h1 className="text-2xl font-semibold text-indigo-400 mb-6 text-center">Use LLMs with Private Data</h1>
 
       {/* Operation Mode Toggle */}
       <div className="flex space-x-1 sm:space-x-2 mb-6 p-1 bg-gray-700 rounded-lg">
